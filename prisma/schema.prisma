@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  phone         String    @unique  // 手机号，必填且唯一
+  password      String    // 密码，必填
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关联
+  examRecords   ExamRecord[]    // 考试记录
+  questionRecords QuestionRecord[] // 答题记录
+  favorites     Favorite[]      // 收藏题目
+  
+  @@map("users")
+}
+
+// 题目模型
+model Question {
+  id          String   @id @default(cuid())
+  type        String   // 题目类型：单选、多选
+  content     String   // 题目内容
+  options     Json     // 选项
+  answer      String   // 正确答案
+  explanation String   // 解析
+  category    String   // 知识领域分类
+  difficulty  Int      // 难度等级 1-5
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关联
+  questionRecords QuestionRecord[] // 答题记录
+  examQuestions   ExamQuestion[]   // 考试题目关联
+  favorites       Favorite[]       // 收藏记录
+
+  @@map("questions")
+}
+
+// 考试记录模型
+model ExamRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int      // 得分
+  duration  Int      // 考试用时（分钟）
+  startTime DateTime // 开始时间
+  endTime   DateTime // 结束时间
+  createdAt DateTime @default(now())
+
+  // 关联
+  user          User           @relation(fields: [userId], references: [id])
+  examQuestions ExamQuestion[] // 考试题目
+
+  @@map("exam_records")
+}
+
+// 考试题目关联模型
+model ExamQuestion {
+  id           String     @id @default(cuid())
+  examId       String
+  questionId   String
+  userAnswer   String?    // 用户答案
+  isCorrect    Boolean?   // 是否正确
+  createdAt    DateTime   @default(now())
+
+  // 关联
+  exam         ExamRecord @relation(fields: [examId], references: [id])
+  question     Question   @relation(fields: [questionId], references: [id])
+
+  @@map("exam_questions")
+}
+
+// 单题答题记录模型
+model QuestionRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  userAnswer String   // 用户答案
+  isCorrect  Boolean  // 是否正确
+  timeSpent  Int      // 答题用时（秒）
+  createdAt  DateTime @default(now())
+
+  // 关联
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@map("question_records")
+}
+
+// 收藏题目模型
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  createdAt  DateTime @default(now())
+
+  // 关联
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@map("favorites")
+} 

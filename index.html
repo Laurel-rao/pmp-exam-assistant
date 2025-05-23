@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMP 考试系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .question-card {
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .option-label {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .option-label:hover {
+            background-color: #f3f4f6;
+        }
+        .selected {
+            background-color: #e5e7eb;
+        }
+        .correct {
+            background-color: #d1fae5;
+        }
+        .wrong {
+            background-color: #fee2e2;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 主菜单 -->
+        <div id="main-menu" class="space-y-6">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">PMP 考试系统</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <button onclick="startExam()" class="bg-blue-600 text-white p-4 rounded-lg shadow hover:bg-blue-700 transition">
+                    开始新考试
+                </button>
+                <button onclick="startLearningMode()" class="bg-purple-600 text-white p-4 rounded-lg shadow hover:bg-purple-700 transition">
+                    学习模式
+                </button>
+                <button onclick="showWrongQuestions()" class="bg-green-600 text-white p-4 rounded-lg shadow hover:bg-green-700 transition">
+                    错题重练
+                </button>
+            </div>
+            
+            <!-- 导出功能按钮 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button onclick="exportQuestions(true)" class="bg-yellow-600 text-white p-4 rounded-lg shadow hover:bg-yellow-700 transition">
+                    导出完整题库
+                </button>
+                <button onclick="exportQuestions(false)" class="bg-orange-600 text-white p-4 rounded-lg shadow hover:bg-orange-700 transition">
+                    导出题库(不含答案)
+                </button>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">考试历史</h2>
+                <div id="exam-history" class="space-y-2">
+                    <!-- 考试历史记录将在这里显示 -->
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">错题统计</h2>
+                <div id="wrong-statistics" class="space-y-2">
+                    <!-- 错题统计将在这里显示 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 学习模式界面 -->
+        <div id="learning-container" class="hidden space-y-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">学习模式</h2>
+                <div class="text-lg font-semibold">
+                    <span class="text-green-600">正确: <span id="learning-correct">0</span></span>
+                    <span class="mx-2">/</span>
+                    <span class="text-red-600">错误: <span id="learning-wrong">0</span></span>
+                    <span class="mx-2">/</span>
+                    <span class="text-blue-600">正确率: <span id="learning-accuracy">0%</span></span>
+                </div>
+            </div>
+            <div id="learning-question-container" class="space-y-6">
+                <!-- 题目将在这里显示 -->
+            </div>
+            <div id="learning-explanation" class="hidden bg-white rounded-lg shadow p-6 mt-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">解析</h3>
+                <div id="learning-explanation-content"></div>
+            </div>
+            <div class="flex justify-between mt-8">
+                <button onclick="previousLearningQuestion()" id="learning-prev-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg shadow hover:bg-gray-700 transition">
+                    上一题
+                </button>
+                <button onclick="returnToMain()" class="bg-red-600 text-white px-6 py-2 rounded-lg shadow hover:bg-red-700 transition">
+                    结束学习
+                </button>
+                <button onclick="nextLearningQuestion()" id="learning-next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 transition">
+                    下一题
+                </button>
+            </div>
+        </div>
+
+        <!-- 考试界面 -->
+        <div id="exam-container" class="hidden space-y-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">考试进行中</h2>
+                <div class="text-lg font-semibold">
+                    时间：<span id="timer">00:00:00</span>
+                </div>
+            </div>
+            <div id="question-container" class="space-y-6">
+                <!-- 题目将在这里显示 -->
+            </div>
+            <div class="flex justify-between mt-8">
+                <button onclick="previousQuestion()" id="prev-btn" class="bg-gray-600 text-white px-6 py-2 rounded-lg shadow hover:bg-gray-700 transition">
+                    上一题
+                </button>
+                <button onclick="nextQuestion()" id="next-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 transition">
+                    下一题
+                </button>
+            </div>
+            <button onclick="submitExam()" id="submit-btn" class="hidden w-full bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 transition mt-4">
+                提交试卷
+            </button>
+        </div>
+
+        <!-- 考试结果 -->
+        <div id="result-container" class="hidden space-y-6">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-8">考试结果</h2>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-center space-y-4">
+                    <p class="text-xl">得分：<span id="score" class="font-bold text-2xl text-blue-600">0</span></p>
+                    <p>用时：<span id="time-used" class="font-semibold">00:00:00</span></p>
+                    <p>正确题数：<span id="correct-count" class="font-semibold text-green-600">0</span></p>
+                    <p>错误题数：<span id="wrong-count" class="font-semibold text-red-600">0</span></p>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <button onclick="reviewExam()" class="w-full bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 transition">
+                    查看解析
+                </button>
+                <button onclick="returnToMain()" class="w-full bg-gray-600 text-white px-6 py-2 rounded-lg shadow hover:bg-gray-700 transition">
+                    返回主菜单
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="exam.js"></script>
+</body>
+</html> 

@@ -268,6 +268,17 @@ export default function ExamPage() {
     return answer.answer ? 'bg-blue-500 text-white' : 'bg-gray-200'
   }
 
+  // 用于解析选项JSON字符串的辅助函数
+  const parseOptions = (options: any): string[] => {
+    if (Array.isArray(options)) return options
+    try {
+      return JSON.parse(options)
+    } catch (e) {
+      console.error('解析选项失败:', e)
+      return []
+    }
+  }
+
   const renderExamContent = () => {
     if (examState === 'not-started') {
       return (
@@ -354,7 +365,7 @@ export default function ExamPage() {
 
                   {/* 选项 */}
                   <div className="space-y-3">
-                    {currentQuestion.options.map((option, index) => {
+                    {parseOptions(currentQuestion.options).map((option, index) => {
                       const optionLabel = getOptionLabel(index)
                       const isSelected = userAnswers[currentIndex]?.answer === optionLabel
                       

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { 
   Brain, 
   Home, 
@@ -38,6 +39,9 @@ interface AnswerRecord {
 }
 
 export default function PracticePage() {
+  const searchParams = useSearchParams()
+  const questionId = searchParams.get('questionId')
+  
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
   const [selectedAnswer, setSelectedAnswer] = useState<string>('')
   const [showResult, setShowResult] = useState(false)
@@ -52,8 +56,34 @@ export default function PracticePage() {
   })
 
   useEffect(() => {
-    loadRandomQuestion()
-  }, [])
+    if (questionId) {
+      loadSpecificQuestion(questionId)
+    } else {
+      loadRandomQuestion()
+    }
+  }, [questionId])
+
+  const loadSpecificQuestion = async (id: string) => {
+    setLoading(true)
+    setShowResult(false)
+    setSelectedAnswer('')
+    setStartTime(new Date())
+
+    try {
+      const response = await authenticatedFetch(`/api/questions/${id}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setCurrentQuestion(data.data.question)
+      } else {
+        console.error('获取题目失败:', data.message)
+      }
+    } catch (error) {
+      console.error('获取题目失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadRandomQuestion = async () => {
     setLoading(true)

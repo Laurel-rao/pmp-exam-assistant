@@ -10,7 +10,10 @@ import {
   Users,
   LogOut,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  BookMarked,
+  BarChart,
+  FileQuestion
 } from 'lucide-react'
 
 // 菜单项类型定义
@@ -30,6 +33,9 @@ const IconMap = {
   'Shield': Shield,
   'Menu': MenuIcon,
   'Users': Users,
+  'BookMarked': BookMarked,
+  'BarChart': BarChart,
+  'FileQuestion': FileQuestion,
 }
 
 // 渲染图标

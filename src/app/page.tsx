@@ -13,7 +13,10 @@ import {
   User,
   Trophy,
   LogIn,
-  LogOut
+  LogOut,
+  Play,
+  Award,
+  Target
 } from "lucide-react";
 
 interface UserInfo {
@@ -302,6 +305,43 @@ export default function Home() {
               <Star className="w-12 h-12 text-purple-600 mb-4" />
               <h3 className="text-xl font-semibold mb-2">学习追踪</h3>
               <p className="text-gray-600">全面追踪学习进度，可视化展示知识掌握程度，科学备考。</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 功能卡片区域 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {/* 练习模式 */}
+          <div className="bg-white rounded-lg shadow hover:shadow-md transition duration-200">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                  <Brain className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">练习模式</h3>
+              </div>
+              <p className="text-gray-600 mb-6">随机抽取题目进行练习，即练即答，提升熟练度。</p>
+              <Link href="/practice" className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200">
+                <Play className="w-4 h-4 mr-2" />
+                开始练习
+              </Link>
+            </div>
+          </div>
+
+          {/* 模拟考试 */}
+          <div className="bg-white rounded-lg shadow hover:shadow-md transition duration-200">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                  <Award className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900">模拟考试</h3>
+              </div>
+              <p className="text-gray-600 mb-6">完整模拟PMP考试环境和题目，检验学习成果。</p>
+              <Link href="/exam" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">
+                <Target className="w-4 h-4 mr-2" />
+                开始考试
+              </Link>
             </div>
           </div>
         </div>

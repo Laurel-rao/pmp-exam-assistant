@@ -11,11 +11,15 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('API: /api/auth/login POST 被访问')
+    
     const body = await request.json()
+    console.log('登录请求参数:', { phone: body.phone, password: '***' })
     
     // 验证请求数据
     const result = loginSchema.safeParse(body)
     if (!result.success) {
+      console.log('登录参数验证失败:', result.error.errors[0].message)
       return NextResponse.json(
         { 
           success: false, 
@@ -28,6 +32,7 @@ export async function POST(request: NextRequest) {
     const { phone, password } = result.data
 
     // 查找用户
+    console.log('开始查询用户:', phone)
     const user = await prisma.user.findUnique({
       where: { phone },
       include: {
@@ -40,6 +45,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
+      console.log('用户不存在:', phone)
       return NextResponse.json(
         { 
           success: false, 
@@ -48,9 +54,13 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+    
+    console.log('找到用户:', user.id, user.phone)
+    console.log('用户角色:', user.userRoles.map(ur => `${ur.role.name}(${ur.role.code})`).join(', '))
 
     // 检查用户状态
     if (user.status !== 1) {
+      console.log('用户状态异常:', user.status)
       return NextResponse.json(
         { 
           success: false, 
@@ -61,8 +71,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证密码
+    console.log('开始验证密码')
     const isPasswordValid = await comparePassword(password, user.password)
     if (!isPasswordValid) {
+      console.log('密码验证失败')
       return NextResponse.json(
         { 
           success: false, 
@@ -71,20 +83,30 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+    
+    console.log('密码验证成功')
+
+    // 提取用户角色
+    const userRoles = user.userRoles.map(ur => ur.role.code)
+    console.log('提取的用户角色:', userRoles)
 
     // 生成JWT令牌
     const token = generateToken({
       id: user.id,
       phone: user.phone,
       name: user.name || undefined,
-      roles: user.userRoles.map(ur => ur.role.code)
+      roles: userRoles
     })
+    
+    console.log('JWT令牌已生成')
 
     // 更新最后登录时间
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() }
     })
+    
+    console.log('最后登录时间已更新')
 
     // 设置Cookie
     const response = NextResponse.json({
@@ -96,7 +118,7 @@ export async function POST(request: NextRequest) {
           name: user.name,
           phone: user.phone,
           avatar: user.avatar,
-          roles: user.userRoles.map(ur => ur.role.code)
+          roles: userRoles
         },
         token: token
       }
@@ -110,6 +132,8 @@ export async function POST(request: NextRequest) {
       path: '/',
       domain: undefined // 开发环境不设置domain
     })
+    
+    console.log('登录成功，Cookie已设置')
 
     return response
 

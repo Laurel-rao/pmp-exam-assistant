@@ -1,11 +1,22 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trophy, LogOut } from "lucide-react";
+import UserManagement from "./components/UserManagement";
+import RoleManagement from "./components/RoleManagement";
+import MenuManagement from "./components/MenuManagement";
+import { removeClientToken } from "@/lib/auth";
 
-const menu = [
+// 菜单项类型定义
+interface MenuItem {
+  key: string;
+  label: string;
+  children?: MenuItem[];
+}
+
+const menu: MenuItem[] = [
   { key: 'user', label: '用户管理' },
   { key: 'role', label: '角色管理' },
   { key: 'menu', label: '菜单管理' },
@@ -25,6 +36,25 @@ export default function AdminPage() {
   const [selected, setSelected] = useState('question-import');
   const router = useRouter();
 
+  // 处理登出
+  const handleLogout = () => {
+    // 调用API登出
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    }).then(() => {
+      // 移除本地token
+      removeClientToken();
+      // 跳转到登录页
+      router.push('/login');
+    }).catch(err => {
+      console.error('登出失败:', err);
+      // 即使API调用失败，也清除本地token并跳转
+      removeClientToken();
+      router.push('/login');
+    });
+  };
+
   // 顶部导航栏（与首页一致，可根据需要提取为组件）
   const TopNav = (
     <nav className="bg-white shadow">
@@ -37,7 +67,7 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">返回首页</Link>
-            <button className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200" onClick={() => router.push('/login')}>
+            <button className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />登出
             </button>
           </div>
@@ -47,7 +77,7 @@ export default function AdminPage() {
   );
 
   // 左侧菜单渲染
-  const renderMenu = (menuList, parentKey = '') => (
+  const renderMenu = (menuList: MenuItem[], parentKey = '') => (
     <ul>
       {menuList.map(item => (
         <li key={item.key}>
@@ -79,7 +109,16 @@ export default function AdminPage() {
 
   // 右侧内容区渲染
   const renderContent = () => {
-    if (selected === 'question-import') {
+    if (selected === 'user') {
+      // 用户管理
+      return <UserManagement />;
+    } else if (selected === 'role') {
+      // 角色管理
+      return <RoleManagement />;
+    } else if (selected === 'menu') {
+      // 菜单管理
+      return <MenuManagement />;
+    } else if (selected === 'question-import') {
       // 题库导入
       return (
         <div className="max-w-xl mx-auto mt-12 p-8 bg-white rounded shadow">
@@ -160,4 +199,4 @@ function ImportQuestions() {
       {message && <div className="mt-4 text-blue-700">{message}</div>}
     </div>
   );
-} 
+}

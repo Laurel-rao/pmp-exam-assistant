@@ -46,14 +46,19 @@ export default function LoginPage() {
         // 保存token到localStorage作为备用
         if (data.data.token) {
           localStorage.setItem('token', data.data.token)
+          console.log('登录成功，token已保存')
+        } else {
+          console.warn('登录成功但未获取到token')
         }
         // 登录成功后跳转到首页
         router.push('/')
         router.refresh()
       } else {
         setError(data.message || '登录失败')
+        console.error('登录失败:', data.message)
       }
     } catch (error) {
+      console.error('登录请求出错:', error)
       setError('网络错误，请重试')
     } finally {
       setIsLoading(false)

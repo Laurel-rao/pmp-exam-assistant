@@ -32,13 +32,31 @@ export function verifyToken(token: string): UserPayload | null {
 // Edge Runtime 兼容的 token 校验
 export async function verifyTokenEdge(token: string, secret: string): Promise<UserPayload | null> {
   try {
+    if (!token) {
+      console.warn('verifyTokenEdge: token is empty')
+      return null
+    }
+    
+    if (!secret) {
+      console.error('verifyTokenEdge: secret is empty')
+      return null
+    }
+    
     const { payload } = await jwtVerify(
       token,
       new TextEncoder().encode(secret)
     )
+    
+    // 验证payload是否包含必要的字段
+    if (!payload.id || !payload.phone || !Array.isArray(payload.roles)) {
+      console.error('verifyTokenEdge: invalid payload structure', payload)
+      return null
+    }
+    
     // jose 返回的 payload 不是严格的 UserPayload 类型，需要断言
     return payload as UserPayload
   } catch (e) {
+    console.error('verifyTokenEdge error:', e)
     return null
   }
 }
@@ -56,13 +74,35 @@ export async function comparePassword(password: string, hashedPassword: string):
 // 从请求中获取用户信息
 export async function getCurrentUser(request: NextRequest): Promise<UserPayload | null> {
   try {
-    const token = request.cookies.get('token')?.value
-    if (!token) return null
+    console.log('getCurrentUser: 开始处理请求')
+    
+    // 尝试从不同来源获取token
+    const cookieToken = request.cookies.get('token')?.value
+    const headerToken = request.headers.get('authorization')?.replace('Bearer ', '')
+    
+    console.log('getCurrentUser: Cookie Token:', cookieToken ? '存在' : '不存在')
+    console.log('getCurrentUser: Header Token:', headerToken ? '存在' : '不存在')
+    
+    const token = cookieToken || headerToken
+    
+    if (!token) {
+      console.log('getCurrentUser: 未找到有效token')
+      return null
+    }
 
-    const payload = verifyToken(token)
-    if (!payload) return null
+    // 使用与middleware相同的验证方法
+    console.log('getCurrentUser: 开始验证token')
+    const payload = await verifyTokenEdge(token, JWT_SECRET)
+    
+    if (!payload) {
+      console.log('getCurrentUser: token验证失败')
+      return null
+    }
+    
+    console.log('getCurrentUser: token验证成功, payload:', JSON.stringify(payload))
 
     // 验证用户是否存在且状态正常
+    console.log('getCurrentUser: 开始查询用户数据, ID:', payload.id)
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       include: {
@@ -74,15 +114,27 @@ export async function getCurrentUser(request: NextRequest): Promise<UserPayload 
       }
     })
 
-    if (!user || user.status !== 1) return null
+    if (!user) {
+      console.log('getCurrentUser: 未找到用户')
+      return null
+    }
+    
+    if (user.status !== 1) {
+      console.log('getCurrentUser: 用户状态异常, status:', user.status)
+      return null
+    }
+    
+    const roles = user.userRoles.map(ur => ur.role.code)
+    console.log('getCurrentUser: 用户角色:', roles)
 
     return {
       id: user.id,
       phone: user.phone,
       name: user.name || undefined,
-      roles: user.userRoles.map(ur => ur.role.code)
+      roles: roles
     }
   } catch (error) {
+    console.error('getCurrentUser error:', error)
     return null
   }
 }
@@ -130,9 +182,22 @@ export async function hasPermission(userId: string, permission: string): Promise
   return menus.some(menu => menu.permission === permission)
 }
 
+// 检查用户是否有管理员权限（不区分大小写）
+export function checkAdminPermission(user: UserPayload | null): boolean {
+  if (!user) return false
+  return user.roles.some(role => role.toLowerCase() === 'admin')
+}
+
 // 客户端工具函数
 export function getClientToken(): string | null {
   if (typeof window === 'undefined') return null
+  // 优先从 cookie 中获取 token
+  const cookies = document.cookie.split(';')
+  const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='))
+  if (tokenCookie) {
+    return tokenCookie.split('=')[1]
+  }
+  // 如果 cookie 中没有，则从 localStorage 获取
   return localStorage.getItem('token')
 }
 
@@ -157,6 +222,7 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   
   return fetch(url, {
     ...options,
-    headers
+    headers,
+    credentials: 'include'
   })
 } 

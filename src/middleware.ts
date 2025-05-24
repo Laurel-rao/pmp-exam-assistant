@@ -11,6 +11,8 @@ const publicPaths = [
   '/api/auth/register',
   '/api/auth/me',
   '/api/auth/logout',
+  '/api/debug/db', // 调试API
+  '/api/debug/token', // Token调试API
 ]
 
 // 静态资源路径
@@ -23,6 +25,8 @@ const staticPaths = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  console.log('Middleware: 请求路径', pathname)
 
   // 静态资源直接放行
   if (staticPaths.some(path => pathname.startsWith(path))) {
@@ -34,11 +38,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  console.log('Middleware: 需要认证的路径')
+  
   // 检查是否有认证令牌
-  const token = request.cookies.get('token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
+  const cookieToken = request.cookies.get('token')?.value
+  const headerToken = request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  console.log('Middleware: Cookie Token:', cookieToken ? '存在' : '不存在')
+  console.log('Middleware: Header Token:', headerToken ? '存在' : '不存在')
+  
+  const token = cookieToken || headerToken
 
   if (!token) {
+    console.log('Middleware: 未找到有效token')
+    
     // 如果是API请求，返回401
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
@@ -55,9 +68,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // 验证令牌（Edge 兼容）
+  console.log('Middleware: 开始验证token')
   const payload = await verifyTokenEdge(token, process.env.JWT_SECRET || 'your-secret-key')
   
   if (!payload) {
+    console.error('Middleware: JWT验证失败，token:', token ? token.substring(0, 10) + '...' : 'undefined')
+    
     // 清除无效令牌
     const response = pathname.startsWith('/api/') 
       ? NextResponse.json(
@@ -81,11 +97,15 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
+  console.log('Middleware: JWT验证成功，用户ID:', payload.id, '角色:', payload.roles)
+
   // 在请求头中添加用户信息，供API使用
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-user-id', payload.id)
   requestHeaders.set('x-user-phone', payload.phone)
   requestHeaders.set('x-user-roles', JSON.stringify(payload.roles))
+  
+  console.log('Middleware: 已添加用户信息到请求头')
 
   return NextResponse.next({
     request: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from 'next/navigation'
@@ -73,11 +73,31 @@ export default function Home() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const [showAdmin, setShowAdmin] = useState(false);
+  const adminMenu = [
+    { key: 'user', label: '用户管理' },
+    { key: 'role', label: '权限管理' },
+    { key: 'question', label: '题库管理' },
+    { key: 'system', label: '系统管理' },
+  ];
+  const [adminTab, setAdminTab] = useState('question');
+  const adminPanelRef = useRef<HTMLDivElement>(null);
 
   // 检查用户登录状态
   useEffect(() => {
     checkAuthStatus()
   }, [])
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (showAdmin && adminPanelRef.current && !adminPanelRef.current.contains(e.target as Node)) {
+        setShowAdmin(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showAdmin]);
 
   const checkAuthStatus = async () => {
     try {
@@ -104,6 +124,12 @@ export default function Home() {
     }
   }
 
+  // 系统管理跳转
+  const handleAdminClick = () => {
+    setShowAdmin(false);
+    router.push('/admin');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -127,9 +153,18 @@ export default function Home() {
             </div>
             
             {user ? (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 relative">
                 <span className="text-gray-700">
                   欢迎，{user.name || user.phone}
+                  {/* 仅管理员显示系统管理入口 */}
+                  {user.roles?.includes('ADMIN') && (
+                    <span
+                      className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded cursor-pointer hover:bg-blue-200"
+                      onClick={handleAdminClick}
+                    >
+                      系统管理
+                    </span>
+                  )}
                 </span>
                 <button 
                   onClick={handleLogout}
@@ -138,6 +173,36 @@ export default function Home() {
                   <LogOut className="w-4 h-4 mr-2" />
                   登出
                 </button>
+                {/* 管理后台悬浮面板 */}
+                {showAdmin && (
+                  <div ref={adminPanelRef} className="fixed top-20 left-0 w-full h-[80vh] flex z-50 shadow-2xl">
+                    <div className="w-60 bg-white border-r h-full flex flex-col">
+                      {adminMenu.map(item => (
+                        <button
+                          key={item.key}
+                          className={`px-6 py-4 text-left hover:bg-blue-50 border-b ${adminTab===item.key?'bg-blue-100 font-bold':''}`}
+                          onClick={() => setAdminTab(item.key)}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 bg-gray-50 p-8 overflow-auto">
+                      {adminTab === 'question' && (
+                        <iframe src="/admin" className="w-full h-full min-h-[500px] bg-white rounded shadow" />
+                      )}
+                      {adminTab === 'user' && (
+                        <div>用户管理（待实现）</div>
+                      )}
+                      {adminTab === 'role' && (
+                        <div>权限管理（待实现）</div>
+                      )}
+                      {adminTab === 'system' && (
+                        <div>系统管理（考试记录、错题汇总分析，待实现）</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <Link 
@@ -164,7 +229,7 @@ export default function Home() {
                   href="/practice" 
                   className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition duration-200 font-semibold"
                 >
-                  开始练习22
+                  开始练习
                 </Link>
                 <Link 
                   href="/exam"

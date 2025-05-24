@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { verifyTokenEdge } from '@/lib/auth'
 
 // 不需要认证的路径
 const publicPaths = [
@@ -21,7 +21,7 @@ const staticPaths = [
   '/icons',
 ]
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 静态资源直接放行
@@ -54,8 +54,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // 验证令牌
-  const payload = verifyToken(token)
+  // 验证令牌（Edge 兼容）
+  const payload = await verifyTokenEdge(token, process.env.JWT_SECRET || 'your-secret-key')
   
   if (!payload) {
     // 清除无效令牌

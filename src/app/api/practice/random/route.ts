@@ -12,47 +12,40 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 获取一道随机题目
+    // 获取用户已做过的题目id
+    const doneRecords = await prisma.questionRecord.findMany({
+      where: {
+        userId: user.id,
+        mode: 'practice', // 只排除练习模式已做过的题
+      },
+      select: { questionId: true }
+    })
+    const doneIds = doneRecords.map(r => r.questionId)
+
+    // 获取未做过的题目总数
+    const total = await prisma.question.count({
+      where: {
+        status: 1,
+        NOT: { id: { in: doneIds } }
+      }
+    })
+    if (total === 0) {
+      return NextResponse.json({ success: false, message: '题库已刷完！' }, { status: 404 })
+    }
+
+    // 随机获取一道未做过的题目
+    const skip = Math.floor(Math.random() * total)
     const question = await prisma.question.findFirst({
       where: {
-        status: 1 // 只获取启用的题目
+        status: 1,
+        NOT: { id: { in: doneIds } }
       },
-      orderBy: {
-        // 使用随机排序
-        id: 'asc'
-      },
-      skip: Math.floor(Math.random() * 1000) // 简单的随机跳过
+      skip,
+      orderBy: { id: 'asc' }
     })
 
     if (!question) {
-      // 如果没有找到题目，尝试获取第一道题目
-      const firstQuestion = await prisma.question.findFirst({
-        where: { status: 1 },
-        orderBy: { createdAt: 'asc' }
-      })
-
-      if (!firstQuestion) {
-        return NextResponse.json(
-          { success: false, message: '暂无可用题目' },
-          { status: 404 }
-        )
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          question: {
-            id: firstQuestion.id,
-            type: firstQuestion.type,
-            content: firstQuestion.content,
-            options: firstQuestion.options,
-            answer: firstQuestion.answer,
-            explanation: firstQuestion.explanation,
-            category: firstQuestion.category,
-            difficulty: firstQuestion.difficulty
-          }
-        }
-      })
+      return NextResponse.json({ success: false, message: '暂无可用题目' }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -70,7 +63,6 @@ export async function GET(request: NextRequest) {
         }
       }
     })
-
   } catch (error) {
     console.error('获取随机题目失败:', error)
     return NextResponse.json(

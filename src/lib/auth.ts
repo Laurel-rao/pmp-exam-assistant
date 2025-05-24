@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import bcryptjs from 'bcryptjs'
 import { NextRequest } from 'next/server'
 import { prisma } from './prisma'
+import { jwtVerify } from 'jose'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
@@ -24,6 +25,20 @@ export function verifyToken(token: string): UserPayload | null {
     return decoded
   } catch (error) {
     console.log('verifyToken error', error)
+    return null
+  }
+}
+
+// Edge Runtime 兼容的 token 校验
+export async function verifyTokenEdge(token: string, secret: string): Promise<UserPayload | null> {
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(secret)
+    )
+    // jose 返回的 payload 不是严格的 UserPayload 类型，需要断言
+    return payload as UserPayload
+  } catch (e) {
     return null
   }
 }

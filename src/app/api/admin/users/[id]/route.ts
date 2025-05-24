@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, hashPassword } from '@/lib/auth'
+import { getCurrentUser, checkAdminPermission, hashPassword } from '@/lib/auth'
 
 // 获取用户详情
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   try {
     // 验证管理员权限
     const user = await getCurrentUser(request)
-    if (!user || !user.roles.includes('admin')) {
+    if (!user || !checkAdminPermission(user)) {
       return NextResponse.json(
         { success: false, message: '无权访问' },
         { status: 403 }
@@ -65,7 +65,7 @@ export async function PUT(
   try {
     // 验证管理员权限
     const user = await getCurrentUser(request)
-    if (!user || !user.roles.includes('admin')) {
+    if (!user || !checkAdminPermission(user)) {
       return NextResponse.json(
         { success: false, message: '无权访问' },
         { status: 403 }
@@ -163,7 +163,7 @@ export async function DELETE(
   try {
     // 验证管理员权限
     const user = await getCurrentUser(request)
-    if (!user || !user.roles.includes('admin')) {
+    if (!user || !checkAdminPermission(user)) {
       return NextResponse.json(
         { success: false, message: '无权访问' },
         { status: 403 }

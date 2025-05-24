@@ -1,202 +1,99 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Trophy, LogOut } from "lucide-react";
+import { authenticatedFetch } from "@/lib/auth";
 import UserManagement from "./components/UserManagement";
 import RoleManagement from "./components/RoleManagement";
 import MenuManagement from "./components/MenuManagement";
-import { removeClientToken } from "@/lib/auth";
-
-// 菜单项类型定义
-interface MenuItem {
-  key: string;
-  label: string;
-  children?: MenuItem[];
-}
-
-const menu: MenuItem[] = [
-  { key: 'user', label: '用户管理' },
-  { key: 'role', label: '角色管理' },
-  { key: 'menu', label: '菜单管理' },
-  { key: 'question', label: '题库管理', children: [
-    { key: 'import', label: '导入题库' },
-    { key: 'crud', label: '题库增删改查' },
-  ]},
-  { key: 'analysis', label: '系统分析', children: [
-    { key: 'records', label: '用户考试记录' },
-    { key: 'mistakes', label: '用户错题分析' },
-    { key: 'loginlog', label: '用户登录日志' },
-    { key: 'oplog', label: '用户操作日志' },
-  ]},
-];
 
 export default function AdminPage() {
-  const [selected, setSelected] = useState('question-import');
-  const router = useRouter();
-
-  // 处理登出
-  const handleLogout = () => {
-    // 调用API登出
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include'
-    }).then(() => {
-      // 移除本地token
-      removeClientToken();
-      // 跳转到登录页
-      router.push('/login');
-    }).catch(err => {
-      console.error('登出失败:', err);
-      // 即使API调用失败，也清除本地token并跳转
-      removeClientToken();
-      router.push('/login');
-    });
-  };
-
-  // 顶部导航栏（与首页一致，可根据需要提取为组件）
-  const TopNav = (
-    <nav className="bg-white shadow">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <Trophy className="w-8 h-8 text-yellow-500 mr-3" />
-            <span className="text-xl font-bold text-gray-900">PMP考试助手</span>
-            <span className="ml-4 text-blue-700 font-semibold">管理后台</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">返回首页</Link>
-            <button className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />登出
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-
-  // 左侧菜单渲染
-  const renderMenu = (menuList: MenuItem[], parentKey = '') => (
-    <ul>
-      {menuList.map(item => (
-        <li key={item.key}>
-          <button
-            className={`w-full text-left px-6 py-3 hover:bg-blue-50 border-l-4 ${selected === `${parentKey}${item.key}` ? 'border-blue-600 bg-blue-100 font-bold' : 'border-transparent'}`}
-            onClick={() => !item.children && setSelected(`${parentKey}${item.key}`)}
-            disabled={!!item.children}
-          >
-            {item.label}
-          </button>
-          {item.children && (
-            <ul className="ml-2">
-              {item.children.map(child => (
-                <li key={child.key}>
-                  <button
-                    className={`w-full text-left px-8 py-2 hover:bg-blue-50 border-l-4 ${selected === `${item.key}-${child.key}` ? 'border-blue-600 bg-blue-100 font-bold' : 'border-transparent'}`}
-                    onClick={() => setSelected(`${item.key}-${child.key}`)}
-                  >
-                    {child.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-
-  // 右侧内容区渲染
-  const renderContent = () => {
-    if (selected === 'user') {
-      // 用户管理
-      return <UserManagement />;
-    } else if (selected === 'role') {
-      // 角色管理
-      return <RoleManagement />;
-    } else if (selected === 'menu') {
-      // 菜单管理
-      return <MenuManagement />;
-    } else if (selected === 'question-import') {
-      // 题库导入
-      return (
-        <div className="max-w-xl mx-auto mt-12 p-8 bg-white rounded shadow">
-          <h1 className="text-2xl font-bold mb-6">题库导入</h1>
-          <ImportQuestions />
-        </div>
-      );
+  // 统计数据
+  const [stats, setStats] = useState({
+    userCount: 0,
+    roleCount: 0,
+    menuCount: 0,
+    questionCount: 0,
+    examCount: 0,
+    systemInfo: {
+      version: '1.0.0',
+      launchDate: '2023-10-01',
+      lastUpdate: '2023-10-15',
+      dbStatus: 'normal',
+      serverStatus: 'normal',
+      apiVersion: 'v1'
     }
-    // 其他菜单内容占位
-    return <div className="p-12 text-gray-500">功能开发中：{selected}</div>;
-  };
+  });
+  const [loading, setLoading] = useState(true);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {TopNav}
-      <div className="flex min-h-[calc(100vh-64px)]">
-        <aside className="w-64 bg-white border-r pt-8">
-          {renderMenu(menu)}
-        </aside>
-        <main className="flex-1 p-8">{renderContent()}</main>
-      </div>
-    </div>
-  );
-}
-
-// 题库导入组件，复用原有逻辑
-function ImportQuestions() {
-  const [file, setFile] = useState<File | null>(null);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleImport = async () => {
-    if (!file) {
-      setMessage("请先选择 pmp_questions.json 文件");
-      return;
-    }
-    setLoading(true);
-    setMessage("");
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const res = await fetch("/api/questions/import", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessage("题库导入成功，共导入 " + data.successCount + " 道题目" + "导入失败" + data.failCount + " 道题目");
-      } else {
-        setMessage("导入失败：" + (data.message || "未知错误"));
+  // 获取统计数据
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        setLoading(true);
+        const response = await authenticatedFetch('/api/admin/stats');
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setStats(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('获取统计数据失败:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setMessage("导入请求失败");
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    fetchStats();
+  }, []);
 
   return (
-    <div>
-      <div className="mb-4">
-        <label className="block mb-2 font-medium">导入题库（pmp_questions.json）</label>
-        <input type="file" accept="application/json" onChange={handleFileChange} />
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">管理后台</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 快捷访问卡片 */}
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <h2 className="text-lg font-semibold mb-2">用户管理</h2>
+          <p className="text-gray-600 mb-4">管理系统用户、分配角色和权限</p>
+          <div className="text-sm text-blue-600">
+            总用户数: <span>{loading ? '加载中...' : stats.userCount}</span>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <h2 className="text-lg font-semibold mb-2">角色管理</h2>
+          <p className="text-gray-600 mb-4">管理系统角色、设置权限</p>
+          <div className="text-sm text-blue-600">
+            总角色数: <span>{loading ? '加载中...' : stats.roleCount}</span>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+          <h2 className="text-lg font-semibold mb-2">菜单管理</h2>
+          <p className="text-gray-600 mb-4">管理系统菜单、配置权限</p>
+          <div className="text-sm text-blue-600">
+            总菜单数: <span>{loading ? '加载中...' : stats.menuCount}</span>
+          </div>
+        </div>
       </div>
-      <button
-        className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-        onClick={handleImport}
-        disabled={loading}
-      >
-        {loading ? "导入中..." : "导入题库"}
-      </button>
-      {message && <div className="mt-4 text-blue-700">{message}</div>}
+      
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-4">系统信息</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-gray-600">系统版本: <span className="text-black">{stats.systemInfo.version}</span></p>
+            <p className="text-gray-600">上线时间: <span className="text-black">{stats.systemInfo.launchDate}</span></p>
+            <p className="text-gray-600">最后更新: <span className="text-black">{stats.systemInfo.lastUpdate}</span></p>
+          </div>
+          <div>
+            <p className="text-gray-600">数据库状态: <span className="text-green-600">{stats.systemInfo.dbStatus === 'normal' ? '正常' : '异常'}</span></p>
+            <p className="text-gray-600">服务器状态: <span className="text-green-600">{stats.systemInfo.serverStatus === 'normal' ? '正常' : '异常'}</span></p>
+            <p className="text-gray-600">API版本: <span className="text-black">{stats.systemInfo.apiVersion}</span></p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

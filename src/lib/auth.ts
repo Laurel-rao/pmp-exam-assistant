@@ -185,7 +185,7 @@ export async function hasPermission(userId: string, permission: string): Promise
 // 检查用户是否有管理员权限（不区分大小写）
 export function checkAdminPermission(user: UserPayload | null): boolean {
   if (!user) return false
-  return user.roles.some(role => role.toLowerCase() === 'admin')
+  return user.roles.some(role => role.toUpperCase() === 'ADMIN')
 }
 
 // 客户端工具函数
